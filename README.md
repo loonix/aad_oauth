@@ -1,3 +1,10 @@
+This code has a workaround for when the user does not have an internet connection, it will return 'no-connection'
+
+```dart
+ var login = await oAuth.login();
+  if (login == 'no-connection') return null;
+```
+
 # Azure Active Directory OAuth
 
 [![pub package](https://img.shields.io/pub/v/aad_oauth.svg)](https://pub.dartlang.org/packages/aad_oauth)
