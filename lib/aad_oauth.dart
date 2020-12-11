@@ -29,13 +29,29 @@ class AadOAuth {
   }
 
   Future<dynamic> login() async {
-    try {
-      await _removeOldTokenOnFirstLogin();
-      if (!Token.tokenIsValid(_token)) {
-        await _performAuthorization();
+    await _removeOldTokenOnFirstLogin();
+    if (!Token.tokenIsValid(_token)) {
+      // WOKAROUND STARTS HERE
+      // load token from cache
+      var checkToken = await _authStorage.loadTokenToCache();
+
+      var hasConnection;
+      try {
+        final result = await InternetAddress.lookup('google.com');
+        if (result.isNotEmpty && result[0].rawAddress.isNotEmpty) {
+          hasConnection = true;
+        } else {
+          hasConnection = false;
+        }
+      } on SocketException catch (_) {
+        hasConnection = false;
       }
-    } catch (e) {
-      return null;
+      // returns no connection string that will be catched on front end code
+      if (!hasConnection && checkToken == null) {
+        return 'no-connection';
+      }
+
+      await _performAuthorization();
     }
   }
 
@@ -62,10 +78,9 @@ class AadOAuth {
     AadOAuth(_config);
   }
 
-  Future<dynamic> _performAuthorization() async {
+  Future<void> _performAuthorization() async {
     // load token from cache
     _token = await _authStorage.loadTokenToCache();
-
     //still have refreh token / try to get access token with refresh token
     if (_token != null) {
       await _performRefreshAuthFlow();
@@ -73,7 +88,6 @@ class AadOAuth {
       try {
         await _performFullAuthFlow();
       } catch (e) {
-        return null;
         rethrow;
       }
     }
@@ -82,32 +96,16 @@ class AadOAuth {
     await _authStorage.saveTokenToCache(_token);
   }
 
-  Future<dynamic> _performFullAuthFlow() async {
-    var hasConnection;
+  Future<void> _performFullAuthFlow() async {
+    String code;
     try {
-      final result = await InternetAddress.lookup('google.com');
-      if (result.isNotEmpty && result[0].rawAddress.isNotEmpty) {
-        hasConnection = true;
-      } else {
-        hasConnection = false;
+      code = await _requestCode.requestCode();
+      if (code == null) {
+        throw Exception('Access denied or authentation canceled.');
       }
-    } on SocketException catch (_) {
-      hasConnection = false;
-    }
-
-    if (hasConnection) {
-      String code;
-      try {
-        code = await _requestCode.requestCode();
-        if (code == null) {
-          throw Exception('Access denied or authentation canceled.');
-        }
-        _token = await _requestToken.requestToken(code);
-      } catch (e) {
-        rethrow;
-      }
-    } else {
-      return false;
+      _token = await _requestToken.requestToken(code);
+    } catch (e) {
+      rethrow;
     }
   }
 
