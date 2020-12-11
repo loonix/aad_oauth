@@ -8,8 +8,8 @@ import 'request_code.dart';
 import 'request_token.dart';
 import 'dart:async';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:io';
 
-/// Authenticates a user with Azure Active Directory using OAuth2.0.
 class AadOAuth {
   static Config _config;
   AuthStorage _authStorage;
@@ -17,8 +17,6 @@ class AadOAuth {
   RequestCode _requestCode;
   RequestToken _requestToken;
 
-  /// Instantiating AadOAuth authentication.
-  /// [config] Parameters according to official Microsoft Documentation.
   AadOAuth(Config config) {
     _config = config;
     _authStorage = AuthStorage(tokenIdentifier: config.tokenIdentifier);
@@ -26,42 +24,37 @@ class AadOAuth {
     _requestToken = RequestToken(_config);
   }
 
-  /// Set [screenSize] of webview.
   void setWebViewScreenSize(Rect screenSize) {
-    if (screenSize != _config.screenSize) {
-      _config.screenSize = screenSize;
-      _requestCode.sizeChanged();
+    _config.screenSize = screenSize;
+  }
+
+  Future<dynamic> login() async {
+    try {
+      await _removeOldTokenOnFirstLogin();
+      if (!Token.tokenIsValid(_token)) {
+        await _performAuthorization();
+      }
+    } catch (e) {
+      return null;
     }
   }
 
-  /// Perform Azure AD login.
-  Future<void> login() async {
-    await _removeOldTokenOnFirstLogin();
-    if (!Token.tokenIsValid(_token)) {
-      await _performAuthorization();
-    }
-  }
-
-  /// Retrieve OAuth access token.
   Future<String> getAccessToken() async {
     if (!Token.tokenIsValid(_token)) await _performAuthorization();
 
     return _token.accessToken;
   }
 
-  /// Retrieve OAuth id token. (JSON Web Token)
   Future<String> getIdToken() async {
     if (!Token.tokenIsValid(_token)) await _performAuthorization();
 
     return _token.idToken;
   }
 
-  /// Get status of user login by checking token.
   bool tokenIsValid() {
     return Token.tokenIsValid(_token);
   }
 
-  /// Perform Azure AD logout.
   Future<void> logout() async {
     await _authStorage.clear();
     await _requestCode.clearCookies();
@@ -69,7 +62,7 @@ class AadOAuth {
     AadOAuth(_config);
   }
 
-  Future<void> _performAuthorization() async {
+  Future<dynamic> _performAuthorization() async {
     // load token from cache
     _token = await _authStorage.loadTokenToCache();
 
@@ -80,6 +73,7 @@ class AadOAuth {
       try {
         await _performFullAuthFlow();
       } catch (e) {
+        return null;
         rethrow;
       }
     }
@@ -88,16 +82,32 @@ class AadOAuth {
     await _authStorage.saveTokenToCache(_token);
   }
 
-  Future<void> _performFullAuthFlow() async {
-    String code;
+  Future<dynamic> _performFullAuthFlow() async {
+    var hasConnection;
     try {
-      code = await _requestCode.requestCode();
-      if (code == null) {
-        throw Exception('Access denied or authentation canceled.');
+      final result = await InternetAddress.lookup('google.com');
+      if (result.isNotEmpty && result[0].rawAddress.isNotEmpty) {
+        hasConnection = true;
+      } else {
+        hasConnection = false;
       }
-      _token = await _requestToken.requestToken(code);
-    } catch (e) {
-      rethrow;
+    } on SocketException catch (_) {
+      hasConnection = false;
+    }
+
+    if (hasConnection) {
+      String code;
+      try {
+        code = await _requestCode.requestCode();
+        if (code == null) {
+          throw Exception('Access denied or authentation canceled.');
+        }
+        _token = await _requestToken.requestToken(code);
+      } catch (e) {
+        rethrow;
+      }
+    } else {
+      return false;
     }
   }
 
