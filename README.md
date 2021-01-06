@@ -1,7 +1,7 @@
 This code has a workaround for when the user does not have an internet connection, it will return 'no-connection'
 
 ```dart
- var login = await oAuth.login();
+ var login = await oAuth.login(lastSavedToken); // Type is Token
   if (login == 'no-connection') return null;
 ```
 
