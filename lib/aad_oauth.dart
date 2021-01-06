@@ -28,8 +28,13 @@ class AadOAuth {
     _config.screenSize = screenSize;
   }
 
-  Future<dynamic> login() async {
+  /// requires the lastSaved token for bypassing IOS not saving on cache issue
+  Future<dynamic> login(Token lastSavedToken) async {
     await _removeOldTokenOnFirstLogin();
+    // detects if there is a token and will get any that is being passed at login
+    if (_token == null) {
+      _token = lastSavedToken;
+    }
     if (!Token.tokenIsValid(_token)) {
       // WOKAROUND STARTS HERE
       // load token from cache
@@ -59,6 +64,11 @@ class AadOAuth {
     if (!Token.tokenIsValid(_token)) await _performAuthorization();
 
     return _token.accessToken;
+  }
+
+  /// gets the token object so ui can save it (IOS Workaround)
+  Future<Token> getTokenObject() async {
+    return _token;
   }
 
   Future<String> getIdToken() async {
