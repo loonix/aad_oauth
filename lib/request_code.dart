@@ -2,6 +2,7 @@ import 'dart:async';
 import 'request/authorization_request.dart';
 import 'model/config.dart';
 import 'package:flutter_webview_plugin/flutter_webview_plugin.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class RequestCode {
   final StreamController<String> _onCodeListener = StreamController();
@@ -22,10 +23,18 @@ class RequestCode {
     await _webView.launch(
       Uri.encodeFull('${_authorizationRequest.url}?$urlParams'),
       clearCookies: _authorizationRequest.clearCookies,
-      hidden: false,
+      hidden: urlParams.contains('openNewPage=true'), // will any page that contains 'openNewPage=true'
       rect: _config.screenSize,
       userAgent: _config.userAgent,
     );
+
+    /// detects if the state has changed and will check for the [openNewPage] parameter
+    _webView.onStateChanged.listen((event) {
+      var uri = Uri.parse(event.url);
+      if (uri.queryParameters['openNewPage'] != null) {
+        _launchURL(event.url);
+      }
+    });
 
     _webView.onUrlChanged.listen((String url) {
       var uri = Uri.parse(url);
@@ -54,16 +63,23 @@ class RequestCode {
     await _webView.close();
   }
 
-  Stream<String> get _onCode =>
-      _onCodeStream ??= _onCodeListener.stream.asBroadcastStream();
+  /// Launches the page in the device browser instead of in webView
+  _launchURL(url) async {
+    _webView.goBack();
+    if (await canLaunch(url)) {
+      await launch(url);
+    } else {
+      throw 'Could not launch $url';
+    }
+  }
 
-  String _constructUrlParams() =>
-      _mapToQueryParams(_authorizationRequest.parameters);
+  Stream<String> get _onCode => _onCodeStream ??= _onCodeListener.stream.asBroadcastStream();
+
+  String _constructUrlParams() => _mapToQueryParams(_authorizationRequest.parameters);
 
   String _mapToQueryParams(Map<String, String> params) {
     final queryParams = <String>[];
-    params
-        .forEach((String key, String value) => queryParams.add('$key=$value'));
+    params.forEach((String key, String value) => queryParams.add('$key=$value'));
     return queryParams.join('&');
   }
 }
