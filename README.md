@@ -13,6 +13,9 @@ On the link you want this to happen just add this param: `openNewPage=true`
 
 it will detect that page and open a browser page instead of opening the webview.
 
+this plugin now requires: 
+`url_launcher: ^5.7.10`
+
 
 
 # Azure Active Directory OAuth
