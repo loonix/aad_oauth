@@ -1,9 +1,19 @@
+# Additional Changes to the plugin
+
+## No Connection handler
 This code has a workaround for when the user does not have an internet connection, it will return 'no-connection'
 
 ```dart
  var login = await oAuth.login(lastSavedToken); // Type is Token
   if (login == 'no-connection') return null;
 ```
+
+## In case you want inner links on the login page to open on a new page
+On the link you want this to happen just add this param: `openNewPage=true`
+
+it will detect that page and open a browser page instead of opening the webview.
+
+
 
 # Azure Active Directory OAuth
 
