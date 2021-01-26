@@ -11,6 +11,7 @@ class RequestCode {
   AuthorizationRequest _authorizationRequest;
 
   var _onCodeStream;
+  bool _loaded = false;
 
   RequestCode(Config config) : _config = config {
     _authorizationRequest = AuthorizationRequest(config);
@@ -28,20 +29,16 @@ class RequestCode {
       userAgent: _config.userAgent,
     );
 
-    /// detects if the state has changed and will check for the [openNewPage] parameter
-    _webView.onStateChanged.listen((event) {
-      var uri = Uri.parse(event.url);
-      if (uri.queryParameters['openNewPage'] != null) {
-        _launchURL(event.url);
-      }
-    });
-
     _webView.onUrlChanged.listen((String url) {
       var uri = Uri.parse(url);
 
       if (uri.queryParameters['error'] != null) {
         _webView.close();
         _onCodeListener.add(null);
+      }
+
+      if (!_loaded && uri.queryParameters['openNewPage'] != null) {
+        _launchURL(url);
       }
 
       if (uri.queryParameters['code'] != null) {
@@ -65,8 +62,12 @@ class RequestCode {
 
   /// Launches the page in the device browser instead of in webView
   _launchURL(url) async {
-    _webView.goBack();
+    _loaded = true;
     if (await canLaunch(url)) {
+      _webView.goBack();
+      Future.delayed(Duration(seconds: 3), () {
+        _loaded = false;
+      });
       await launch(url);
     } else {
       throw 'Could not launch $url';
