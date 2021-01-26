@@ -64,11 +64,8 @@ class RequestCode {
   _launchURL(url) async {
     _loaded = true;
     if (await canLaunch(url)) {
-      _webView.goBack();
-      Future.delayed(Duration(seconds: 3), () {
-        _loaded = false;
-      });
       await launch(url);
+      _webView.goBack().then((value) => _loaded = false);
     } else {
       throw 'Could not launch $url';
     }
