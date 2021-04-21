@@ -29,12 +29,10 @@ class AadOAuth {
   }
 
   /// requires the lastSaved token for bypassing IOS not saving on cache issue
-  Future<dynamic> login(Token lastSavedToken) async {
+  Future<dynamic> login({Token lastSavedToken}) async {
     await _removeOldTokenOnFirstLogin();
     // detects if there is a token and will get any that is being passed at login
-    if (_token == null) {
-      _token = lastSavedToken;
-    }
+    _token ??= lastSavedToken;
     if (!Token.tokenIsValid(_token)) {
       // WOKAROUND STARTS HERE
       // load token from cache
